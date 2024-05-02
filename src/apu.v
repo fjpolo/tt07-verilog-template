@@ -4,27 +4,27 @@
 `default_nettype    none
 
 module LenCounterUnit (
-    input  logic       clk,             // Clock signal
-    input  logic       reset,           // Reset signal
-    input  logic       cold_reset,      // Cold reset signal
-    input  logic       len_clk,         // Length clock signal
-    input  logic       aclk1,           // Auxiliary clock 1 signal
-    input  logic       aclk1_d,         // Delayed auxiliary clock 1 signal
-    input  logic [7:0] load_value,      // Load value signal (8-bit)
-    input  logic       halt_in,         // Halt input signal
-    input  logic       addr,            // Address signal
-    input  logic       is_triangle,     // Is triangle signal
-    input  logic       write,           // Write signal
-    input  logic       enabled,         // Enabled signal
-    output logic       lc_on            // LC_ON output signal
+    input  logic       clk,
+    input  logic       reset,
+    input  logic       cold_reset,
+    input  logic       len_clk,
+    input  logic       aclk1,
+    input  logic       aclk1_d,
+    input  logic [7:0] load_value,
+    input  logic       halt_in,
+    input  logic       addr,
+    input  logic       is_triangle,
+    input  logic       write,
+    input  logic       enabled,
+    output logic       lc_on
 );
 
-    always @(posedge clk) begin : lenunit
-        logic [7:0] len_counter_int;    // Internal length counter
-        logic halt, halt_next;          // Halt signals
-        logic [7:0] len_counter_next;   // Next length counter value
-        logic lc_on_1;                  // LC_ON value for the previous clock cycle
-        logic clear_next;               
+    always_ff @(posedge clk) begin : lenunit
+        logic [7:0] len_counter_int;
+        logic halt, halt_next;
+        logic [7:0] len_counter_next;
+        logic lc_on_1;
+        logic clear_next;
 
         if (aclk1_d)
             if (~enabled)
@@ -85,50 +85,45 @@ module LenCounterUnit (
 
 endmodule
 
-
 module EnvelopeUnit (
-    input       clk,
-    input       reset,
-    input       env_clk,
-    input  [5:0] din,
-    input       addr,
-    input       write,
-    output [3:0] envelope
+    input  logic       clk,
+    input  logic       reset,
+    input  logic       env_clk,
+    input  logic [5:0] din,
+    input  logic       addr,
+    input  logic       write,
+    output logic [3:0] envelope
 );
 
-    reg [3:0] env_count, env_vol;
-    reg env_disabled;
+    logic [3:0] env_count, env_vol;
+    logic env_disabled;
 
     assign envelope = env_disabled ? env_vol : env_count;
 
-    always @(posedge clk) begin
-        reg [3:0] env_div;
-        reg env_reload;
-        reg env_loop;
-        reg env_reset;
+    always_ff @(posedge clk) begin : envunit
+        logic [3:0] env_div;
+        logic env_reload;
+        logic env_loop;
+        logic env_reset;
 
         if (env_clk) begin
-            if (!env_reload) begin
-                env_div <= env_div - 1;
-                if (env_div == 0) begin
+            if (~env_reload) begin
+                env_div <= env_div - 1'd1;
+                if (~|env_div) begin
                     env_div <= env_vol;
                     if (|env_count || env_loop)
-                        env_count <= env_count - 1;
+                        env_count <= env_count - 1'd1;
                 end
             end else begin
                 env_div <= env_vol;
                 env_count <= 4'hF;
-                env_reload <= 0;
+                env_reload <= 1'b0;
             end
         end
 
         if (write) begin
-            if (!addr) begin
-                {env_loop, env_disabled, env_vol} <= din;
-            end
-            if (addr) begin
-                env_reload <= 1;
-            end
+            if (~addr) {env_loop, env_disabled, env_vol} <= din;
+            if (addr) env_reload <= 1;
         end
 
         if (reset) begin
@@ -142,49 +137,48 @@ module EnvelopeUnit (
 
 endmodule
 
-
 module SquareChan (
-    input       MMC5,
-    input       clk,
-    input       ce,
-    input       aclk1,
-    input       aclk1_d,
-    input       reset,
-    input       cold_reset,
-    input       allow_us,
-    input       sq2,
-    input  [1:0] Addr,
-    input  [7:0] DIN,
-    input       write,
-    input  [7:0] lc_load,
-    input       LenCtr_Clock,
-    input       Env_Clock,
-    input       odd_or_even,
-    input       Enabled,
-    output [3:0] Sample,
-    output      IsNonZero
+    input  logic       MMC5,
+    input  logic       clk,
+    input  logic       ce,
+    input  logic       aclk1,
+    input  logic       aclk1_d,
+    input  logic       reset,
+    input  logic       cold_reset,
+    input  logic       allow_us,
+    input  logic       sq2,
+    input  logic [1:0] Addr,
+    input  logic [7:0] DIN,
+    input  logic       write,
+    input  logic [7:0] lc_load,
+    input  logic       LenCtr_Clock,
+    input  logic       Env_Clock,
+    input  logic       odd_or_even,
+    input  logic       Enabled,
+    output logic [3:0] Sample,
+    output logic       IsNonZero
 );
 
     // Register 1
-    reg [1:0] Duty;
+    logic [1:0] Duty;
 
     // Register 2
-    reg SweepEnable, SweepNegate, SweepReset;
-    reg [2:0] SweepPeriod, SweepDivider, SweepShift;
+    logic SweepEnable, SweepNegate, SweepReset;
+    logic [2:0] SweepPeriod, SweepDivider, SweepShift;
 
-    reg [10:0] Period;
-    reg [11:0] TimerCtr;
-    reg [2:0] SeqPos;
-    reg [10:0] ShiftedPeriod;
-    reg [10:0] PeriodRhs;
-    reg [11:0] NewSweepPeriod;
+    logic [10:0] Period;
+    logic [11:0] TimerCtr;
+    logic [2:0] SeqPos;
+    logic [10:0] ShiftedPeriod;
+    logic [10:0] PeriodRhs;
+    logic [11:0] NewSweepPeriod;
 
-    wire ValidFreq;
-    wire subunit_write;
-    wire [3:0] Envelope;
-    wire lc;
-    wire DutyEnabledUsed;
-    wire DutyEnabled;
+    logic ValidFreq;
+    logic subunit_write;
+    logic [3:0] Envelope;
+    logic lc;
+    logic DutyEnabledUsed;
+    logic DutyEnabled;
 
     assign DutyEnabledUsed = MMC5 ^ DutyEnabled;
     assign ShiftedPeriod = (Period >> SweepShift);
@@ -222,7 +216,7 @@ module SquareChan (
         .envelope       (Envelope)
     );
 
-    always @* begin
+    always_comb begin
         // The wave forms nad barrel shifter are abstracted simply here
         case (Duty)
             0: DutyEnabled = (SeqPos == 7);
@@ -232,7 +226,7 @@ module SquareChan (
         endcase
     end
 
-    always @ (posedge clk) begin
+    always_ff @(posedge clk) begin : sqblock
         // Unusual to APU design, the square timers are clocked overlapping two phi2. This
         // means that writes can impact this operation as they happen, however because of the way
         // the results are presented, we can simply delay it rather than adding complexity for
@@ -292,36 +286,34 @@ module SquareChan (
 
 endmodule
 
-
 module TriangleChan (
-    input       clk,
-    input       phi1,
-    input       aclk1,
-    input       aclk1_d,
-    input       reset,
-    input       cold_reset,
-    input       allow_us,
-    input  [1:0] Addr,
-    input  [7:0] DIN,
-    input       write,
-    input  [7:0] lc_load,
-    input       LenCtr_Clock,
-    input       LinCtr_Clock,
-    input       Enabled,
-    output [3:0] Sample,
-    output      IsNonZero
+    input  logic       clk,
+    input  logic       phi1,
+    input  logic       aclk1,
+    input  logic       aclk1_d,
+    input  logic       reset,
+    input  logic       cold_reset,
+    input  logic       allow_us,
+    input  logic [1:0] Addr,
+    input  logic [7:0] DIN,
+    input  logic       write,
+    input  logic [7:0] lc_load,
+    input  logic       LenCtr_Clock,
+    input  logic       LinCtr_Clock,
+    input  logic       Enabled,
+    output logic [3:0] Sample,
+    output logic       IsNonZero
 );
+    logic [10:0] Period, applied_period, TimerCtr;
+    logic [4:0] SeqPos;
+    logic [6:0] LinCtrPeriod, LinCtrPeriod_1, LinCtr;
+    logic LinCtrl, line_reload;
+    logic LinCtrZero;
+    logic lc;
 
-    reg [10:0] Period, applied_period, TimerCtr;
-    reg [4:0] SeqPos;
-    reg [6:0] LinCtrPeriod, LinCtrPeriod_1, LinCtr;
-    reg LinCtrl, line_reload;
-    wire LinCtrZero;
-    wire lc;
-
-    wire LenCtrZero;
-    wire subunit_write;
-    wire [3:0] sample_latch;
+    logic LenCtrZero;
+    logic subunit_write;
+    logic [3:0] sample_latch;
 
     assign LinCtrZero = ~|LinCtr;
     assign IsNonZero = lc;
@@ -345,7 +337,7 @@ module TriangleChan (
         .lc_on          (lc)
     );
 
-    always @(posedge clk) begin
+    always_ff @(posedge clk) begin
         if (phi1) begin
             if (TimerCtr == 0) begin
                 TimerCtr <= Period;
@@ -404,31 +396,30 @@ module TriangleChan (
 endmodule
 
 module NoiseChan (
-    input         clk,
-    input         ce,
-    input         aclk1,
-    input         aclk1_d,
-    input         reset,
-    input         cold_reset,
-    input  [1:0]  Addr,
-    input  [7:0]  DIN,
-    input         PAL,
-    input         write,
-    input  [7:0]  lc_load,
-    input         LenCtr_Clock,
-    input         Env_Clock,
-    input         Enabled,
-    output [3:0] Sample,
-    output        IsNonZero
+    input  logic       clk,
+    input  logic       ce,
+    input  logic       aclk1,
+    input  logic       aclk1_d,
+    input  logic       reset,
+    input  logic       cold_reset,
+    input  logic [1:0] Addr,
+    input  logic [7:0] DIN,
+    input  logic       PAL,
+    input  logic       write,
+    input  logic [7:0] lc_load,
+    input  logic       LenCtr_Clock,
+    input  logic       Env_Clock,
+    input  logic       Enabled,
+    output logic [3:0] Sample,
+    output logic       IsNonZero
 );
-
-    reg ShortMode;
-    reg [14:0] Shift;
-    reg [3:0] Period;
-    reg [11:0] NoisePeriod, TimerCtr;
-    reg [3:0] Envelope;
-    wire subunit_write;
-    wire lc;
+    logic ShortMode;
+    logic [14:0] Shift;
+    logic [3:0] Period;
+    logic [11:0] NoisePeriod, TimerCtr;
+    logic [3:0] Envelope;
+    logic subunit_write;
+    logic lc;
 
     assign IsNonZero = lc;
     assign subunit_write = (Addr == 0 || Addr == 3) & write;
@@ -503,9 +494,9 @@ module NoiseChan (
         noise_ntsc_lut[15] = 11'h014;
     end
 
-    reg [10:0] noise_timer;
-    reg noise_clock;
-    always @(posedge clk) begin
+    logic [10:0] noise_timer;
+    logic noise_clock;
+    always_ff @(posedge clk) begin
         if (aclk1_d) begin
             noise_timer <= {noise_timer[9:0], (noise_timer[10] ^ noise_timer[8]) | ~|noise_timer};
 
@@ -517,7 +508,7 @@ module NoiseChan (
         end
 
         if (aclk1) begin
-            if (noise_timer == 11'h400)
+            if (noise_timer == 'h400)
                 noise_clock <= 1;
         end
 
@@ -527,7 +518,7 @@ module NoiseChan (
         end
 
         if (reset) begin
-            if (~|noise_timer) noise_timer <= (PAL ? noise_pal_lut[0] : noise_ntsc_lut[0]);
+            if (|noise_timer) noise_timer <= (PAL ? noise_pal_lut[0] : noise_ntsc_lut[0]);
             ShortMode <= 0;
             Shift <= 0;
             Period <= 0;
@@ -538,41 +529,40 @@ module NoiseChan (
     end
 endmodule
 
-
 module DmcChan (
-    input         MMC5,
-    input         clk,
-    input         aclk1,
-    input         aclk1_d,
-    input         reset,
-    input         cold_reset,
-    input  [2:0]  ain,
-    input  [7:0]  DIN,
-    input         write,
-    input         dma_ack,      // 1 when DMC byte is on DmcData. DmcDmaRequested should go low.
-    input  [7:0]  dma_data,     // Input data to DMC from memory.
-    input         PAL,
-    output [15:0] dma_address,     // Address DMC wants to read
-    output        irq,
-    output  [6:0] Sample,
-    output        dma_req,      // 1 when DMC wants DMA
-    output        enable
+    input  logic        MMC5,
+    input  logic        clk,
+    input  logic        aclk1,
+    input  logic        aclk1_d,
+    input  logic        reset,
+    input  logic        cold_reset,
+    input  logic  [2:0] ain,
+    input  logic  [7:0] DIN,
+    input  logic        write,
+    input  logic        dma_ack,      // 1 when DMC byte is on DmcData. DmcDmaRequested should go low.
+    input  logic  [7:0] dma_data,     // Input data to DMC from memory.
+    input  logic        PAL,
+    output logic [15:0] dma_address,     // Address DMC wants to read
+    output logic        irq,
+    output logic  [6:0] Sample,
+    output logic        dma_req,      // 1 when DMC wants DMA
+    output logic        enable
 );
-    reg irq_enable;
-    reg loop;                 // Looping enabled
-    reg [3:0] frequency;           // Current value of frequency register
-    reg [7:0] sample_address;  // Base address of sample
-    reg [7:0] sample_length;      // Length of sample
-    reg [11:0] bytes_remaining;      // 12 bits bytes left counter 0 - 4081.
-    reg [7:0] sample_buffer;    // Next value to be loaded into shift reg
+    logic irq_enable;
+    logic loop;                 // Looping enabled
+    logic [3:0] frequency;           // Current value of frequency register
+    logic [7:0] sample_address;  // Base address of sample
+    logic [7:0] sample_length;      // Length of sample
+    logic [11:0] bytes_remaining;      // 12 bits bytes left counter 0 - 4081.
+    logic [7:0] sample_buffer;    // Next value to be loaded into shift reg
 
-    reg [8:0] dmc_lsfr;
-    reg [7:0] dmc_volume, dmc_volume_next;
-    reg dmc_silence;
-    reg have_buffer;
-    reg [7:0] sample_shift;
-    reg [2:0] dmc_bits; // Simply an 8 cycle counter.
-    reg enable_1, enable_2, enable_3;
+    logic [8:0] dmc_lsfr;
+    logic [7:0] dmc_volume, dmc_volume_next;
+    logic dmc_silence;
+    logic have_buffer;
+    logic [7:0] sample_shift;
+    logic [2:0] dmc_bits; // Simply an 8 cycle counter.
+    logic enable_1, enable_2, enable_3;
 
     reg [8:0] pal_pitch_lut [16];
     initial begin
@@ -616,11 +606,11 @@ module DmcChan (
 
     assign Sample = dmc_volume_next[6:0];
     assign dma_req = ~have_buffer & enable & enable_3;
-    reg dmc_clock;
+    logic dmc_clock;
 
 
-    reg reload_next;
-    always @(posedge clk) begin
+    logic reload_next;
+    always_ff @(posedge clk) begin
         dma_address[15] <= 1;
         if (write) begin
             case (ain)
@@ -743,48 +733,67 @@ module DmcChan (
 
 endmodule
 
-
 module FrameCtr (
-    input                 clk,
-    input                 aclk1,
-    input                 aclk2,
-    input                 reset,
-    input                 cold_reset,
-    input                 write,
-    input                 read,
-    input                 write_ce,
-    input  [7:0]          din,
-    input  [1:0]          addr,
-    input                 PAL,
-    input                 MMC5,
-    output                irq,
-    output                irq_flag,
-    output                frame_half,
-    output                frame_quarter
+    input  logic clk,
+    input  logic aclk1,
+    input  logic aclk2,
+    input  logic reset,
+    input  logic cold_reset,
+    input  logic write,
+    input  logic read,
+    input  logic write_ce,
+    input  logic [7:0] din,
+    input  logic [1:0] addr,
+    input  logic PAL,
+    input  logic MMC5,
+    output logic irq,
+    output logic irq_flag,
+    output logic frame_half,
+    output logic frame_quarter
 );
 
-    reg frame_reset;
-    reg frame_interrupt_buffer;
-    reg frame_int_disabled;
-    reg FrameInterrupt;
-    reg frame_irq, set_irq;
-    reg FrameSeqMode_2;
-    reg frame_reset_2;
-    reg w4017_1, w4017_2;
-    reg [14:0] frame;
+    // NTSC -- Confirmed
+    // Binary Frame Value         Decimal  Cycle
+    // 15'b001_0000_0110_0001,    04193    03713 -- Quarter
+    // 15'b011_0110_0000_0011,    13827    07441 -- Half
+    // 15'b010_1100_1101_0011,    11475    11170 -- 3 quarter
+    // 15'b000_1010_0001_1111,    02591    14899 -- Reset w/o Seq/Interrupt
+    // 15'b111_0001_1000_0101     29061    18625 -- Reset w/ seq
+
+    // PAL -- Speculative
+    // Binary Frame Value         Decimal  Cycle
+    // 15'b001_1111_1010_0100     08100    04156
+    // 15'b100_0100_0011_0000     17456    08313
+    // 15'b101_1000_0001_0101     22549    12469
+    // 15'b000_1011_1110_1000     03048    16625
+    // 15'b000_0100_1111_1010     01274    20782
+
+    logic frame_reset;
+    logic frame_interrupt_buffer;
+    logic frame_int_disabled;
+    logic FrameInterrupt;
+    logic frame_irq, set_irq;
+    logic FrameSeqMode_2;
+    logic frame_reset_2;
+    logic w4017_1, w4017_2;
+    logic [14:0] frame;
 
     // Register 4017
-    reg DisableFrameInterrupt;
-    reg FrameSeqMode;
+    logic DisableFrameInterrupt;
+    logic FrameSeqMode;
 
-    assign frame_int_disabled = DisableFrameInterrupt;
+    assign frame_int_disabled = DisableFrameInterrupt; // | (write && addr == 5'h17 && din[6]);
     assign irq = FrameInterrupt && ~DisableFrameInterrupt;
     assign irq_flag = frame_interrupt_buffer;
 
-    wire seq_mode;
+    // This is implemented from the original LSFR frame counter logic taken from the 2A03 netlists. The
+    // PAL LFSR numbers are educated guesses based on existing observed cycle numbers, but they may not
+    // be perfectly correct.
+
+    logic seq_mode;
     assign seq_mode = aclk1 ? FrameSeqMode : FrameSeqMode_2;
 
-    wire frm_a, frm_b, frm_c, frm_d, frm_e;
+    logic frm_a, frm_b, frm_c, frm_d, frm_e;
     assign frm_a = (PAL ? 15'b001_1111_1010_0100 : 15'b001_0000_0110_0001) == frame;
     assign frm_b = (PAL ? 15'b100_0100_0011_0000 : 15'b011_0110_0000_0011) == frame;
     assign frm_c = (PAL ? 15'b101_1000_0001_0101 : 15'b010_1100_1101_0011) == frame;
@@ -796,7 +805,8 @@ module FrameCtr (
     assign frame_half = (frm_b | frm_d | frm_e | (w4017_2 & seq_mode));
     assign frame_quarter = (frm_a | frm_b | frm_c | frm_d | frm_e | (w4017_2 & seq_mode));
 
-    always @ (posedge clk) begin : apu_block
+    always_ff @(posedge clk) begin : apu_block
+
         if (aclk1) begin
             frame <= frame_reset_2 ? 15'h7FFF : {frame[13:0], ((frame[14] ^ frame[13]) | ~|frame)};
             w4017_2 <= w4017_1;
@@ -808,6 +818,7 @@ module FrameCtr (
         if (aclk2 & frame_reset)
             frame_reset_2 <= 1;
 
+        // Continously update the Frame IRQ state and read buffer
         if (set_irq & ~frame_int_disabled) begin
             FrameInterrupt <= 1;
             frame_interrupt_buffer <= 1;
@@ -819,7 +830,7 @@ module FrameCtr (
         if (frame_int_disabled)
             FrameInterrupt <= 0;
 
-        if (write_ce && addr == 2'b11 && ~MMC5) begin  // Register $4017
+        if (write_ce && addr == 3 && ~MMC5) begin  // Register $4017
             FrameSeqMode <= din[7];
             DisableFrameInterrupt <= din[6];
             w4017_1 <= 1;
@@ -831,104 +842,123 @@ module FrameCtr (
             w4017_1 <= 0;
             w4017_2 <= 0;
             DisableFrameInterrupt <= 0;
-            if (cold_reset) FrameSeqMode <= 0;
+            if (cold_reset) FrameSeqMode <= 0; // Don't reset this on warm reset
             frame <= 15'h7FFF;
         end
     end
 
 endmodule
 
-
 module APU (
-    input                MMC5,
-    input                clk,
-    input                PHI2,
-    input                ce,
-    input                reset,
-    input                cold_reset,
-    input                allow_us,
-    input                PAL,
-    input  [4:0]         ADDR,
-    input  [7:0]         DIN,
-    input                RW,
-    input                CS,
-    input  [4:0]         audio_channels,
-    input  [7:0]         DmaData,
-    input                odd_or_even,
-    input                DmaAck,
-    output reg  [7:0]    DOUT,
-    output reg [15:0]    Sample,
-    output                DmaReq,
-    output reg [15:0]    DmaAddr,
-    output                IRQ
+    input  logic        MMC5,
+    input  logic        clk,
+    input  logic        PHI2,
+    input  logic        ce,
+    input  logic        reset,
+    input  logic        cold_reset,
+    input  logic        allow_us,       // Set to 1 to allow ultrasonic frequencies
+    input  logic        PAL,
+    input  logic  [4:0] ADDR,           // APU Address Line
+    input  logic  [7:0] DIN,            // Data to APU
+    input  logic        RW,
+    input  logic        CS,
+    input  logic  [4:0] audio_channels, // Enabled audio channels
+    input  logic  [7:0] DmaData,        // Input data to DMC from memory.
+    input  logic        odd_or_even,
+    input  logic        DmaAck,         // 1 when DMC byte is on DmcData. DmcDmaRequested should go low.
+    output logic  [7:0] DOUT,           // Data from APU
+    output logic [15:0] Sample,
+    output logic        DmaReq,         // 1 when DMC wants DMA
+    output logic [15:0] DmaAddr,        // Address DMC wants to read
+    output logic        IRQ             // IRQ asserted high == asserted
 );
 
-    reg [7:0] len_counter_lut [32];
-    initial begin
-        len_counter_lut[0]  = 8'h09;
-        len_counter_lut[1]  = 8'hFD;
-        len_counter_lut[2]  = 8'h13;
-        len_counter_lut[3]  = 8'h01;
-        len_counter_lut[4]  = 8'h27;
-        len_counter_lut[5]  = 8'h03;
-        len_counter_lut[6]  = 8'h4F;
-        len_counter_lut[7]  = 8'h05;
-        len_counter_lut[8]  = 8'h9F;
-        len_counter_lut[9]  = 8'h07;
-        len_counter_lut[10] = 8'h3B;
-        len_counter_lut[11] = 8'h09;
-        len_counter_lut[12] = 8'h0D;
-        len_counter_lut[13] = 8'h0B;
-        len_counter_lut[14] = 8'h19;
-        len_counter_lut[15] = 8'h0D;
-        len_counter_lut[16] = 8'h0B;
-        len_counter_lut[17] = 8'h0F;
-        len_counter_lut[18] = 8'h17;
-        len_counter_lut[19] = 8'h11;
-        len_counter_lut[20] = 8'h2F;
-        len_counter_lut[21] = 8'h13;
-        len_counter_lut[22] = 8'h5F;
-        len_counter_lut[23] = 8'h15;
-        len_counter_lut[24] = 8'hBF;
-        len_counter_lut[25] = 8'h17;
-        len_counter_lut[26] = 8'h47;
-        len_counter_lut[27] = 8'h19;
-        len_counter_lut[28] = 8'h0F;
-        len_counter_lut[29] = 8'h1B;
-        len_counter_lut[30] = 8'h1F;
-        len_counter_lut[31] = 8'h1D;
-    end
+reg [7:0] len_counter_lut [32];
+initial begin
+    len_counter_lut[0] = 8'h09;
+    len_counter_lut[1] = 8'hFD;
+    len_counter_lut[2] = 8'h13;
+    len_counter_lut[3] = 8'h01;
+    len_counter_lut[4] = 8'h27;
+    len_counter_lut[5] = 8'h03;
+    len_counter_lut[6] = 8'h4F;
+    len_counter_lut[7] = 8'h05;
+    len_counter_lut[8] = 8'h9F;
+    len_counter_lut[9] = 8'h07;
+    len_counter_lut[10] = 8'h3B;
+    len_counter_lut[11] = 8'h09;
+    len_counter_lut[12] = 8'h0D;
+    len_counter_lut[13] = 8'h0B;
+    len_counter_lut[14] = 8'h19;
+    len_counter_lut[15] = 8'h0D;
+    len_counter_lut[16] = 8'h0B;
+    len_counter_lut[17] = 8'h0F;
+    len_counter_lut[18] = 8'h17;
+    len_counter_lut[19] = 8'h11;
+    len_counter_lut[20] = 8'h2F;
+    len_counter_lut[21] = 8'h13;
+    len_counter_lut[22] = 8'h5F;
+    len_counter_lut[23] = 8'h15;
+    len_counter_lut[24] = 8'hBF;
+    len_counter_lut[25] = 8'h17;
+    len_counter_lut[26] = 8'h47;
+    len_counter_lut[27] = 8'h19;
+    len_counter_lut[28] = 8'h0F;
+    len_counter_lut[29] = 8'h1B;
+    len_counter_lut[30] = 8'h1F;
+    len_counter_lut[31] = 8'h1D;
+end
 
-    reg [7:0] lc_load;
+
+    logic [7:0] lc_load;
     assign lc_load = len_counter_lut[DIN[7:3]];
 
+    // APU reads and writes happen at Phi2 of the 6502 core. Note: Not M2.
     logic read, read_old;
     logic write, write_ce, write_old;
     logic phi2_old, phi2_ce;
 
-    assign read     = RW & CS;
-    assign write    = ~RW & CS;
-    assign phi2_ce  = PHI2 & ~phi2_old;
+    assign read = RW & CS;
+    assign write = ~RW & CS;
+    assign phi2_ce = PHI2 & ~phi2_old;
     assign write_ce = write & phi2_ce;
 
+    // The APU has four primary clocking events that take place:
+    // aclk1    -- Aligned with CPU phi1, but every other cpu tick. This drives the majority of the APU
+    // aclk1_d  -- Aclk1, except delayed by 1 cpu cycle exactly. Drives he half/quarter signals and len counter
+    // aclk2    -- Aligned with CPU phi2, also every other frame
+    // write    -- Happens on CPU phi2 (Not M2!). Most of these are latched by one of the above clocks.
     logic aclk1, aclk2, aclk1_delayed, phi1;
-    assign aclk1         = ce & odd_or_even;
-    assign aclk2         = phi2_ce & ~odd_or_even;
-    assign aclk1_delayed = ce & ~odd_or_even;
-    assign phi1          = ce;
+    assign aclk1 = ce & odd_or_even;          // Defined as the cpu tick when the frame counter increases
+    assign aclk2 = phi2_ce & ~odd_or_even;                   // Tick on odd cycles, not 50% duty cycle so it covers 2 cpu cycles
+    assign aclk1_delayed = ce & ~odd_or_even; // Ticks 1 cpu cycle after frame counter
+    assign phi1 = ce;
 
-    reg [4:0] Enabled;
-    reg [3:0] Sq1Sample, Sq2Sample, TriSample, NoiSample;
-    reg [6:0] DmcSample;
-    reg DmcIrq;
-    reg IsDmcActive;
+    logic [4:0] Enabled;
+    logic [3:0] Sq1Sample,Sq2Sample,TriSample,NoiSample;
+    logic [6:0] DmcSample;
+    logic DmcIrq;
+    logic IsDmcActive;
 
-    reg irq_flag;
-    reg frame_irq;
+    logic irq_flag;
+    logic frame_irq;
 
-    reg [7:0] enabled_buffer, enabled_buffer_1;
+    // Generate internal memory write signals
+    logic ApuMW0, ApuMW1, ApuMW2, ApuMW3, ApuMW4, ApuMW5;
+    assign ApuMW0 = ADDR[4:2]==0; // SQ1
+    assign ApuMW1 = ADDR[4:2]==1; // SQ2
+    assign ApuMW2 = ADDR[4:2]==2; // TRI
+    assign ApuMW3 = ADDR[4:2]==3; // NOI
+    assign ApuMW4 = ADDR[4:2]>=4; // DMC
+    assign ApuMW5 = ADDR[4:2]==5; // Control registers
 
-    always @(posedge clk) begin
+    logic Sq1NonZero, Sq2NonZero, TriNonZero, NoiNonZero;
+    logic ClkE, ClkL;
+
+    logic [4:0] enabled_buffer, enabled_buffer_1;
+    assign Enabled = aclk1 ? enabled_buffer : enabled_buffer_1;
+
+    always_ff @(posedge clk) begin
         phi2_old <= PHI2;
 
         if (aclk1) begin
@@ -936,12 +966,12 @@ module APU (
         end
 
         if (ApuMW5 && write && ADDR[1:0] == 1) begin
-            enabled_buffer <= DIN[4:0];
+            enabled_buffer <= DIN[4:0]; // Register $4015
         end
 
         if (reset) begin
-            enabled_buffer     <= 0;
-            enabled_buffer_1   <= 0;
+            enabled_buffer <= 0;
+            enabled_buffer_1 <= 0;
         end
     end
 
@@ -949,10 +979,13 @@ module APU (
     assign ClkE = (frame_quarter & aclk1_delayed);
     assign ClkL = (frame_half & aclk1_delayed);
 
-    assign DOUT = {DmcIrq, irq_flag, 1'b0, IsDmcActive, NoiNonZero, TriNonZero, Sq2NonZero, Sq1NonZero};
+    // Generate bus output
+    assign DOUT = {DmcIrq, irq_flag, 1'b0, IsDmcActive, NoiNonZero, TriNonZero,
+        Sq2NonZero, Sq1NonZero};
 
     assign IRQ = frame_irq || DmcIrq;
 
+    // Generate each channel
     SquareChan Squ1 (
         .MMC5         (MMC5),
         .clk          (clk),
@@ -983,7 +1016,7 @@ module APU (
         .aclk1_d      (aclk1_delayed),
         .reset        (reset),
         .cold_reset   (cold_reset),
-        .allow_us     (allow_us),
+        .allow_us     (allow_us),       // nand2mario
         .sq2          (1'b1),
         .Addr         (ADDR[1:0]),
         .DIN          (DIN),
@@ -1036,23 +1069,23 @@ module APU (
     );
 
     DmcChan Dmc (
-        .MMC5         (MMC5),
-        .clk          (clk),
-        .aclk1        (aclk1),
-        .aclk1_d      (aclk1_delayed),
-        .reset        (reset),
-        .cold_reset   (cold_reset),
-        .ain          (ADDR[2:0]),
-        .DIN          (DIN),
-        .write        (write & ApuMW4),
-        .dma_ack      (DmaAck),
-        .dma_data     (DmaData),
-        .PAL          (PAL),
-        .dma_address  (DmaAddr),
-        .irq          (DmcIrq),
-        .Sample       (DmcSample),
-        .dma_req      (DmaReq),
-        .enable       (IsDmcActive)
+        .MMC5        (MMC5),
+        .clk         (clk),
+        .aclk1       (aclk1),
+        .aclk1_d     (aclk1_delayed),
+        .reset       (reset),
+        .cold_reset  (cold_reset),
+        .ain         (ADDR[2:0]),
+        .DIN         (DIN),
+        .write       (write & ApuMW4),
+        .dma_ack     (DmaAck),
+        .dma_data    (DmaData),
+        .PAL         (PAL),
+        .dma_address (DmaAddr),
+        .irq         (DmcIrq),
+        .Sample      (DmcSample),
+        .dma_req     (DmaReq),
+        .enable      (IsDmcActive)
     );
 
     APUMixer mixer (
@@ -1084,7 +1117,6 @@ module APU (
     );
 
 endmodule
-
 
 // http://wiki.nesdev.com/w/index.php/APU_Mixer
 // I generated three LUT's for each mix channel entry and one lut for the squares, then a
@@ -1737,74 +1769,4 @@ wire [15:0] ch2 = mix_lut[mix];
 
 assign sample = ch1 + ch2;
 
-endmodule
-
-
-
-
-module simple_nes_apu(
-    input  wire [7:0] simple_nes_apu_ui_in,    // Dedicated inputs
-    output wire [7:0] simple_nes_apu_uo_out,   // Dedicated outputs
-    input  wire [7:0] simple_nes_apu_uio_in,   // IOs: Input path
-    output wire [7:0] simple_nes_apu_uio_out,  // IOs: Output path
-    output wire [7:0] simple_nes_apu_uio_oe,   // IOs: Enable path (active high: 0=input, 1=output)
-    input  wire       simple_nes_apu_ena,      // always 1 when the design is powered, so you can ignore it
-    input  wire       simple_nes_apu_clk,      // clock
-    input  wire       simple_nes_apu_rst_n     // reset_n - low to reset
-);
-
-// wire nes_mmc5;
-// wire nes_phi2;
-// apu_cs;
-// sys_type[0];
-// apu_ce;
-// reset;
-// cold_reset;
-// addr[4:0];
-// dbus;
-// apu_dout;
-// cpu_rnw;
-// audio_channels;
-// sample_apu;
-// apu_dma_request;
-// apu_dma_ack;
-// apu_dma_addr;
-// from_data_bus;
-// odd_or_even;
-// apu_irq;
-// wire nes_allow_us;
-
-// assign nes_mmc5 = 1'b0;
-// assign nes_allow_us = 1'b0;
-
-// always @(posedge clk) begin
-// if(rst_n) begin
-
-// end
-// end
-
-// // from nes.v
-// APU apu(
-//         .MMC5           (nes_mmc5),
-//         .clk            (clk),
-//         .PHI2           (phi2),
-//         .CS             (apu_cs),
-//         .PAL            (sys_type[0]),
-//         .ce             (apu_ce),
-//         .reset          (reset),
-//         .cold_reset     (cold_reset),
-//         .ADDR           (addr[4:0]),
-//         .DIN            (dbus),
-//         .DOUT           (apu_dout),
-//         .RW             (cpu_rnw),
-//         .audio_channels (audio_channels),
-//         .Sample         (sample_apu),
-//         .DmaReq         (apu_dma_request),
-//         .DmaAck         (apu_dma_ack),
-//         .DmaAddr        (apu_dma_addr),
-//         .DmaData        (from_data_bus),
-//         .odd_or_even    (odd_or_even),
-//         .IRQ            (apu_irq),
-//         .allow_us(1'b0)
-//     );
 endmodule
