@@ -17,10 +17,19 @@ module tt_um_fjpolo_simple_counter (
 );
 
   // All output pins must be assigned. If not used, assign to 0.
-  assign uo_out  = ui_in + uio_in;  // Example: ou_out is the sum of ui_in and uio_in
+  // assign uo_out  = ui_in + uio_in;  // Example: ou_out is the sum of ui_in and uio_in
   assign uio_out = 0;
   assign uio_oe  = 0;
 
-  counter count(.clk_i(clk), .n_reset_i(rst_n), .ce_i(ui_in[0]), .output_active_o(uo_out[0]));
+  assign uo_out[7:2] = ui_in[7:3];
+
+  assign uo_out[1] = 0;
+
+  counter count(
+                .clk_i(clk), 
+                .n_reset_i(rst_n), 
+                .ce_i(ui_in[0]), 
+                .output_active_o(uo_out[0])
+                );
 
 endmodule
