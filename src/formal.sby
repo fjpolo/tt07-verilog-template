@@ -1,0 +1,22 @@
+[tasks]
+apu_LenCounterUnit
+
+[options]
+# apu_LenCounterUnit
+apu_LenCounterUnit:         mode prove
+apu_LenCounterUnit:         depth 25
+
+
+[engines]
+apu_LenCounterUnit:         smtbmc
+# abc pdr
+# aiger avy
+# aiger suprove
+
+[script]
+# apu_LenCounterUnit
+apu_LenCounterUnit: read_verilog -sv -DAPU_LEN_COUNTER_UNIT -formal apu.v
+apu_LenCounterUnit: prep -top LenCounterUnit
+
+[files]
+apu.v

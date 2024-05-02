@@ -9,13 +9,12 @@ You can also include images in this folder and reference them in the markdown. E
 
 ## How it works
 
-`ui_in[0]` works as Chip Enable pin, active high. This enables an 8 bit counter that counts up to 128 and signals `uo_out[0]` for one clock cycle as active hhgh.
+`ui_in[0]` works as Chip Enable pin, active high. It activates NES APU.
 
 ## How to test
 
-Easy: count to 127, at clock 128 `uo_out[0]` should be 0. Clock once more, `uo_out[0]` should be 1. Count one cycle again, `uo_out[0]` should be 0.
+ToDo:
 
 ## External hardware
 
 `ui_in[0]` can be tied to HIGH.
-`uo_out[0]` can be an LED

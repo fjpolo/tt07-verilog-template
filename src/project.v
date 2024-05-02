@@ -5,7 +5,7 @@
 
 `default_nettype none
 
-module tt_um_fjpolo_simple_counter (
+module tt_um_fjpolo_nes_apu (
     input  wire [7:0] ui_in,    // Dedicated inputs
     output wire [7:0] uo_out,   // Dedicated outputs
     input  wire [7:0] uio_in,   // IOs: Input path
@@ -16,20 +16,20 @@ module tt_um_fjpolo_simple_counter (
     input  wire       rst_n     // reset_n - low to reset
 );
 
-  // All output pins must be assigned. If not used, assign to 0.
+  // // All output pins must be assigned. If not used, assign to 0.
   // assign uo_out  = ui_in + uio_in;  // Example: ou_out is the sum of ui_in and uio_in
-  assign uio_out = 0;
-  assign uio_oe  = 0;
+  // assign uio_out = 0;
+  // assign uio_oe  = 0;
 
-  assign uo_out[7:2] = ui_in[7:3];
-
-  assign uo_out[1] = 0;
-
-  counter count(
-                .clk_i(clk), 
-                .n_reset_i(rst_n), 
-                .ce_i(ui_in[0]), 
-                .output_active_o(uo_out[0])
-                );
+  simple_nes_apu my_apu(
+    .simple_nes_apu_ui_in(ui_in),
+    .simple_nes_apu_uo_out(uo_out),
+    .simple_nes_apu_uio_in(uio_in),
+    .simple_nes_apu_uio_out(uio_out),
+    .simple_nes_apu_uio_oe(uio_oe),
+    .simple_nes_apu_ena(ena),
+    .simple_nes_apu_clk(clk),
+    .simple_nes_apu_rst_n(rst_n)
+  );
 
 endmodule
