@@ -13,7 +13,7 @@ You can also include images in this folder and reference them in the markdown. E
 
 ## How to test
 
-Easy: count to 128, at clock 128 `uo_out[0]` should be 0. Clock once more, `uo_out[0]` should be 1. Count one cycle again, `uo_out[0]` should be 0.
+Easy: count to 127, at clock 128 `uo_out[0]` should be 0. Clock once more, `uo_out[0]` should be 1. Count one cycle again, `uo_out[0]` should be 0.
 
 ## External hardware
 

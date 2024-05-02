@@ -7,22 +7,19 @@ module counter(
     output output_active_o
 );
 
-reg [7:0] counter;
+reg [6:0] counter;
 `ifdef FORMAL
-initial counter = 8'h00;
+initial counter = 7'h00;
 `endif 
 
-localparam MAX_COUNT = 128;
+localparam MAX_COUNT = 127;
 
 always @(posedge clk_i) begin
     if((!n_reset_i))
         counter <= 8'h00;
     else begin
         if(ce_i) begin
-            if(counter >= MAX_COUNT)
-                counter <= 0; 
-            else
-                counter <= counter + 1;
+            counter <= counter + 1;
         end
     end
 end
