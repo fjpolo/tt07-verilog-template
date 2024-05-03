@@ -1,59 +1,64 @@
-// Rewritten 6/4/2020 by Kitrinx
-// This code is GPLv3.
-
+/************************************
+/* Rewritten 6/4/2020 by Kitrinx
+/*
+/* Translated from SystemVerilog to Verilog with ChatGPT v3.5 - Corrected by @fjpolo - 05, 2024
+/*
+/* Formal Verification by @fjpolo - 05, 2024
+/*
+/* This code is GPLv3.
+/***********************************/
 `default_nettype    none
 
 module LenCounterUnit (
-    input  logic       clk,
-    input  logic       reset,
-    input  logic       cold_reset,
-    input  logic       len_clk,
-    input  logic       aclk1,
-    input  logic       aclk1_d,
-    input  logic [7:0] load_value,
-    input  logic       halt_in,
-    input  logic       addr,
-    input  logic       is_triangle,
-    input  logic       write,
-    input  logic       enabled,
-    output logic       lc_on
+    input           clk_i,
+    input           reset_n_i,
+    input           reset_cold_n_i,
+    input           len_clk_i,
+    input           aclk1_i,
+    input           aclk1_d_i,
+    input  [7:0]    load_value_i,
+    input           halt_in_i,
+    input           addr_i,
+    input           is_triangle_i,
+    input           write_i,
+    input           enabled_n_i,
+    output reg      lc_on
 );
 
-    always_ff @(posedge clk) begin : lenunit
-        logic [7:0] len_counter_int;
-        logic halt, halt_next;
-        logic [7:0] len_counter_next;
-        logic lc_on_1;
-        logic clear_next;
+    reg [7:0] len_counter_int;
+    reg halt, halt_next;
+    reg [7:0] len_counter_next;
+    reg lc_on_1;
+    reg clear_next;
 
-        if (aclk1_d)
-            if (~enabled)
-                lc_on <= 0;
+    always @(posedge clk_i) begin : lenunit
+        if (aclk1_d_i && !enabled_n_i)
+            lc_on <= 0;
 
-        if (aclk1) begin
+        if (aclk1_i) begin
             lc_on_1 <= lc_on;
             len_counter_next <= halt || ~|len_counter_int ? len_counter_int : len_counter_int - 1'd1;
             clear_next <= ~halt && ~|len_counter_int;
         end
 
-        if (write) begin
-            if (~addr) begin
-                halt <= halt_in;
+        if(write_i) begin
+            if(~addr_i) begin
+                halt <= halt_in_i;
             end else begin
                 lc_on <= 1;
-                len_counter_int <= load_value;
+                len_counter_int <= load_value_i;
             end
         end
 
         // This deliberately can overwrite being loaded from writes
-        if (len_clk && lc_on_1) begin
+        if ((len_clk_i)&&(lc_on_1)) begin
             len_counter_int <= halt ? len_counter_int : len_counter_next;
             if (clear_next)
                 lc_on <= 0;
         end
 
-        if (reset) begin
-            if (~is_triangle || cold_reset) begin
+        if (!reset_n_i) begin
+            if (~is_triangle_i || !reset_cold_n_i) begin
                 halt <= 0;
             end
             lc_on <= 0;
@@ -63,56 +68,125 @@ module LenCounterUnit (
     end
 
     //
-	// Formal verification
-	//
-	`ifdef	FORMAL
+    // Formal verification
+    //
+    `ifdef  FORMAL
 
-		`ifdef APU_LEN_COUNTER_UNIT
-			`define	ASSUME	assume
-		`else
-			`define	ASSUME	assert
-		`endif
+        `ifdef APU_LEN_COUNTER_UNIT
+            `define ASSUME  assume
+        `else
+            `define ASSUME  assert
+        `endif
 
     // f_past_valid
-	reg	f_past_valid;
-	initial	f_past_valid = 1'b0;
-	always @(posedge clk)
-		f_past_valid <= 1'b1;
+    reg f_past_valid;
+    initial f_past_valid = 1'b0;
+    always @(posedge clk_i)
+        f_past_valid <= 1'b1;
 
-        
+    // Prove that reset_n_i works properly
+    always @(posedge clk_i) begin
+        if((f_past_valid)&&(!$past(reset_n_i)&&(reset_n_i))) begin
+            assert(lc_on == 0);
+            assert(len_counter_int == 0);
+            assert(len_counter_next == 0);
+            if ((!$past(is_triangle_i))||(!$past(reset_cold_n_i)))
+                assert(halt == 0);
+        end
+    end
+
+    // Prove that lc_on_! is assigned correctly
+    always @(posedge clk_i) begin
+        if((f_past_valid)&&(!$past(reset_n_i))) begin
+            if (($past(aclk1_d_i))&&(!$past(enabled_n_i)))
+                assert(lc_on == 0);
+            if ($past(aclk1_i)) 
+                assert(lc_on_1 == $past(lc_on));
+        end
+    end
+
+    // Prove that len_counter_next is assigned correctly
+    always @(posedge clk_i) begin
+        if((f_past_valid)&&($past(reset_n_i))) begin
+            if ($past(aclk1_i))
+                assert(len_counter_next == ($past(halt) || ~|$past(len_counter_int) ? $past(len_counter_int) : $past(len_counter_int) - 1'd1));
+        end
+    end
+
+    // Prove that clear_next is assigned correctly
+    always @(posedge clk_i) begin
+        if((f_past_valid)&&(!$past(reset_n_i))) begin
+            if ($past(aclk1_i))
+                assert(clear_next == ((!$past(halt))&&(~|($past(len_counter_int)))));
+        end
+    end
+
+    // Prove that halt is assigned correctly
+    always @(posedge clk_i)
+        if((f_past_valid)&&($past(reset_n_i))) 
+            if(($past(write_i))&&(!$past(addr_i)))
+                assert(halt == $past(halt_in_i));
+
+    // // ToDo: Prove that len_counter_int is assigned correctly
+    // always @(posedge clk_i) begin
+    //     if(f_past_valid) begin
+    //         if((!$past(reset_n_i))&&(reset_n_i)) begin
+    //             assert(len_counter_int == 0);
+    //         end else if(($past(reset_n_i))&&(reset_n_i)) begin
+    //             if(($past(write_i))&&($past(addr_i)))
+    //                 assert(len_counter_int == $past(load_value_i));
+    //             if (($past(len_clk_i))&&($past(lc_on_1))) begin
+    //                 if($past(halt))
+    //                     assert(len_counter_int == $past(len_counter_int));
+    //                 else
+    //                     assert(len_counter_int == $past(len_counter_next));
+    //             end
+    //         end   
+    //     end
+    // end        
+            
+
+    //
+    // ToDo: Contract
+    //
+    // always @(posedge clk_i) begin
+    //     if((f_past_valid)&&($past(reset_n_i))&&($past(write_i))&&(!(~$past(addr_i)))) begin
+    //         `ASSUME(reset_n_i == $past(reset_n_i));
+    //         `ASSUME(write_i == $past(write_i));
+    //         `ASSUME(addr_i == $past(addr_i));
+    //         assert(lc_on == 1);
+    //     end
+    // end
 
     `endif // FORMAL
 
 endmodule
 
 module EnvelopeUnit (
-    input  logic       clk,
-    input  logic       reset,
-    input  logic       env_clk,
-    input  logic [5:0] din,
-    input  logic       addr,
-    input  logic       write,
-    output logic [3:0] envelope
+    input            clk_i,
+    input            reset_n_i,
+    input            env_clk_i,
+    input   [5:0]    din_i,
+    input            addr_i,
+    input            write_i,
+    output  [3:0]    envelope_o
 );
 
-    logic [3:0] env_count, env_vol;
-    logic env_disabled;
+    reg [3:0] env_count, env_vol;
+    reg env_disabled;
+    reg [3:0] env_div;
+    reg env_reload;
+    reg env_loop;
+    reg env_reset_n_i;
 
-    assign envelope = env_disabled ? env_vol : env_count;
-
-    always_ff @(posedge clk) begin : envunit
-        logic [3:0] env_div;
-        logic env_reload;
-        logic env_loop;
-        logic env_reset;
-
-        if (env_clk) begin
+    always @ (posedge clk_i) begin : envunit
+        if (env_clk_i) begin
             if (~env_reload) begin
-                env_div <= env_div - 1'd1;
+                env_div <= env_div - 1'b1;
                 if (~|env_div) begin
                     env_div <= env_vol;
                     if (|env_count || env_loop)
-                        env_count <= env_count - 1'd1;
+                        env_count <= env_count - 1'b1;
                 end
             end else begin
                 env_div <= env_vol;
@@ -121,19 +195,111 @@ module EnvelopeUnit (
             end
         end
 
-        if (write) begin
-            if (~addr) {env_loop, env_disabled, env_vol} <= din;
-            if (addr) env_reload <= 1;
+        if (write_i) begin
+            if (~addr_i) 
+                {env_loop, env_disabled, env_vol} <= din_i;
+            if (addr_i)
+                env_reload <= 1'b1;
         end
 
-        if (reset) begin
-            env_loop <= 0;
-            env_div <= 0;
-            env_vol <= 0;
-            env_count <= 0;
-            env_reload <= 0;
+        if (!reset_n_i) begin
+            env_loop <= 1'b0;
+            env_div <= 4'b0000;
+            env_vol <= 4'b0000;
+            env_count <= 4'b0000;
+            env_reload <= 1'b0;
         end
     end
+
+    assign envelope_o = env_disabled ? env_vol : env_count;
+
+    //
+    // Formal verification
+    //
+    `ifdef  FORMAL
+
+        `ifdef APU_ENVELOPE_UNIT
+            `define ASSUME  assume
+        `else
+            `define ASSUME  assert
+        `endif
+
+    // f_past_valid
+    reg f_past_valid;
+    initial f_past_valid = 1'b0;
+    always @ (posedge clk_i)
+        f_past_valid <= 1'b1;
+
+    // Prove that reset_n_i works properly
+    always @(posedge clk_i) begin
+        if(($past(f_past_valid))&&(f_past_valid)&&(!$past(reset_n_i))) begin
+            assert(env_loop == 1'b0);
+            assert(env_div == 4'b0000);
+            assert(env_vol == 4'b0000);
+            assert(env_count == 4'b0000);
+            assert(env_reload == 1'b0);
+        end
+    end
+
+    // Prove that {env_loop, env_disabled, env_vol} are assigned correctly
+    always @(posedge clk_i) begin
+        if((f_past_valid)&&($past(reset_n_i))) begin
+            if ($past(write_i)) begin
+                if (~$past(addr_i))
+                    assert({env_loop, env_disabled, env_vol} == $past(din_i));
+            end
+        end
+    end
+
+    // Prove that env_loop is assigned correctly
+    always @(posedge clk_i) begin
+        if((f_past_valid)&&($past(reset_n_i))) begin
+            if ($past(env_clk_i)) begin
+                if (~$past(env_reload)) begin
+                    if (~|$past(env_div)) begin
+                        if ((|$past(env_count))||($past(env_loop)))
+                            assert(env_count == ($past(env_count) - 1'b1));
+                    end
+                end else begin
+                    assert(env_count == 4'hF);
+                end
+            end
+        end
+    end
+
+    // Prove that env_div is assigned correctly
+    always @(posedge clk_i) begin
+        if((f_past_valid)&&($past(reset_n_i))) begin
+            if ($past(env_clk_i)) begin
+                assert(env_div == ($past(env_div) - 1'b1));
+                if (~$past(env_reload)) begin
+                    if (~|$past(env_div))
+                        assert(env_div == $past(env_vol));
+                end else begin
+                    assert(env_div == $past(env_vol));
+                end
+            end
+        end
+    end
+
+    // Prove that env_reload is assigned correctly
+    always @(posedge clk_i) begin
+        if((f_past_valid)&&($past(reset_n_i))) begin
+            if ($past(write_i)) begin
+                if ($past(addr_i))
+                    assert(env_reload == 1'b1);
+            end
+        end
+    end
+
+    //
+    // Contract
+    //
+    // always @(*)
+    //     if((f_past_valid)&&(reset_n_i))
+    //         assert(envelope_o == env_disabled ? env_vol : env_count);
+
+    `endif // FORMAL
 
 endmodule
 
