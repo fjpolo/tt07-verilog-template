@@ -1,0 +1,21 @@
+[tasks]
+counter
+
+[options]
+# counter
+counter:         mode prove
+counter:         depth 25
+
+[engines]
+counter:         smtbmc
+# abc pdr
+# aiger avy
+# aiger suprove
+
+[script]
+# counter
+counter: read_verilog -sv -DCOUNTER -formal counter.v
+counter: prep -top counter
+
+[files]
+counter.v
